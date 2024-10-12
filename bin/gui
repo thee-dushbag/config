@@ -1,0 +1,14 @@
+#!/usr/bin/env python
+
+from sys import argv
+from tkinter import Tk
+
+color = 'black'
+if len(argv) == 2:
+    color = argv[1]
+
+root = Tk()
+root.geometry('500x500')
+root.title('Gui Application')
+root.config(bg=color)
+root.mainloop()

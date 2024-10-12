@@ -1,0 +1,131 @@
+#! /usr/bin/python3
+
+import os
+from pathlib import Path
+from subprocess import run
+
+# COLOURS
+RED = '\x1b[91;1m'
+GREEN = '\x1b[92;1m'
+YELLOW = '\x1b[93;1m'
+PURPLE= '\x1b[95;1m'
+BLUE = '\x1b[96;1m'
+WHITE = '\x1b[97;1m'
+NOCLR= '\x1b[97;1m'
+
+FILE_NOT_FOUND_CODE = 127
+SEP_CLR = WHITE
+ERROR_MESSAGE_CLR = BLUE
+ERROR_HEAD_CLR = RED
+OKAY_MESSAGE_CLR = YELLOW
+OKAY_HEAD_CLR = GREEN
+
+def msg(headclr: str, head: str, messageclr: str, message: str):
+    print(f'{headclr}{head}{SEP_CLR}: {messageclr}{message}{NOCLR}')
+
+def okay_msg(head: str, message: str):
+    msg(GREEN, head, OKAY_MESSAGE_CLR, message)
+
+def error_msg(head: str, message: str):
+    msg(RED, head, ERROR_MESSAGE_CLR, message)
+
+reqs = Path.home() / 'Content' / 'code' / 'requirements.txt'
+error_reqs = reqs.parent / f'error-{reqs.name}'
+okay_reqs = reqs.parent / f'okay-{reqs.name}'
+
+envdir = Path.home() / 'Content' / 'bin' / 'src'
+
+if not envdir.exists():
+    envdir.mkdir()
+
+assert envdir.is_dir(), 'Download Location is not a Directory: {str(envdir)!r}'
+
+def prepare_paths(package_list, okay_list, error_list):
+    if not package_list.exists():
+        error_msg('Not Found',f'Package List File was not found: {str(package_list)!r}')
+        exit(FILE_NOT_FOUND_CODE)
+    def _prepare(path):
+        if not path.exists():
+            path.touch()
+    _prepare(error_list)
+    _prepare(okay_list)
+
+prepare_paths(reqs, okay_reqs, error_reqs)
+
+def add_liner(filepath):
+    def _addline(*lines: str):
+        with filepath.open('a') as file:
+            for line in lines:
+                file.write(f'{line}\n')
+    return _addline
+
+install_okay = add_liner(okay_reqs)
+install_error = add_liner(error_reqs)
+
+def _pack(pclr, pack, aclr):
+    return f"'{pclr}{pack}{aclr}'"
+
+def _kp(pclr, pack):
+    return _pack(pclr, pack, OKAY_MESSAGE_CLR)
+
+def _ep(pclr, pack):
+    return _pack(pclr, pack, ERROR_MESSAGE_CLR)
+
+kp = lambda pack: _kp(OKAY_HEAD_CLR, pack)
+ep = lambda pack: _ep(ERROR_HEAD_CLR, pack)
+
+def pip_install(package, line_no):
+    cmd = f'pip download "{package}"'
+    okay_msg('Start-Install', f'Installing {kp(package)}')
+    okay_msg('Command-Running', cmd)
+    output = run(cmd, shell=True, capture_output=True)
+    if output.returncode == 0:
+        head = 'Success-Install'
+        message = f'Package {kp(package)} was installed successfully.'
+        func = okay_msg
+        install_okay(package)
+    else:
+        head = 'Unsuccessful-Install'
+        message = f'An Error occurred while installing {ep(package)}'
+        func = error_msg
+        install_error(package)
+    func(head, message)
+    # print(output.stderr.decode())
+
+def install_from_list(reqs_list):
+    total = len(reqs_list)
+    for line_no, req in enumerate(reqs_list, start=1):
+        if not req: continue
+        okay_msg("\nStatus", f"Installation at {WHITE}{line_no}/{total}{YELLOW}.")
+        pip_install(req, line_no)
+
+def _get_lines(reqs):
+    with reqs.open() as file:
+        return tuple(line.strip() for line in file)
+
+def _show_status(func, head, message, *lines):
+    for line in lines: func(head, message.format(line=kp(line)))
+
+def _show_installed(lines):
+    message = 'Skipping {line} as is already installed'
+    head = 'Already-Installed'
+    _show_status(okay_msg, head, message, *lines)
+
+def _show_to_install(lines):
+    message = 'Package {line} will be installed.'
+    head = 'To-Install'
+    _show_status(okay_msg, head, message, *lines)
+
+if __name__ == '__main__':
+    cdir = os.getcwd()
+    os.chdir(envdir)
+    all_lines = set(_get_lines(reqs))
+    okay_lines = set(_get_lines(okay_reqs))
+    error_lines = set(_get_lines(error_reqs))
+    _to_install = all_lines - okay_lines
+    to_install = list(_to_install.union(error_lines))
+    _show_installed(okay_lines)
+    _show_to_install(to_install)
+    install_from_list(to_install)
+    os.chdir(cdir)
+

@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+
+COLOR=$'\e[91;1m'
+NOCOLOR=$'\e[0m'
+HELP="Usage:
+  $(basename "$0") [cmd] [args]
+
+Commands:
+  CMD      ALIAS  ARGS          DESC
+  add      a      <todo>        Add todo(s) to the Todo File
+  addall   A      <todo>*       Treat each arg as an independent todo.
+  get      g                    List saved todo(s)
+  show     s                    List saved todo(s) along with there ids (tid)
+  help     h                    Shows this message and exit
+  remove   r      <tid>*        Remove todos by id
+  clear    c                    Remove all todos
+
+Arguments:
+  <todo>                     A single todo as seen by the command
+  <todo>*                    Multiple todos as seen by the command
+  <tid>*                     Line numbers of the todos targeted in the todo file
+
+NOTE: Without any arguments, help is implied.
+"
+
+function setup() {
+	[ ! -v TODO_LINES_FILE ] && {
+		echo "${COLOR}TodoLines location was not set via: \$TODO_LINES_FILE global variable${NOCOLOR}" >&2
+		exit 1
+	}
+	if [ ! -e "$TODO_LINES_FILE" ] && ! touch "$TODO_LINES_FILE" >&2; then
+		echo "${COLOR}TodoLinesFile is untouchable: error touching '$TODO_LINES_FILE'${NOCOLOR}" >&2
+        exit 1
+    fi
+	[ ! -f "$TODO_LINES_FILE" ] && {
+		echo "${COLOR}TodoLinesFile is not a regular file: '$TODO_LINES_FILE'${NOCOLOR}" >&2
+		exit 1
+	}
+}
+
+function extra_arguments_error() {
+	local CMD="$1"; shift 1
+	echo "${COLOR}ExtraArgumentsError for command '$CMD': '$*'${NOCOLOR}" >&2
+	exit 1
+}
+
+function unknown_command_error() {
+	echo "${COLOR}UnrecognizedCommandError: '$1'${NOCOLOR}" >&2
+	exit 1
+}
+
+function add_todo() {
+	for todo; do
+		echo "$todo" >>"$TODO_LINES_FILE"
+	done
+}
+
+function expected_int_error() {
+	echo "${COLOR}ExpectedIntegerError but got: $1${NOCOLOR}" >&2
+	exit 1
+}
+
+function assert_all_ints() {
+	for val; do
+		[[ "$val" =~ ^[[:digit:]]+$ ]] || expected_int_error $val
+	done
+}
+
+function remove_todos() {
+	local sedexpr=""
+	for tid; do
+		sedexpr+="${tid}d;"
+	done
+	sed -i "$sedexpr" "$TODO_LINES_FILE"
+}
+	
+
+function main() {
+	setup
+	local catcmd=cat
+	[[ $# -eq 0 ]] && set help
+	case "$1" in
+		add | a) shift 1; add_todo "$*" ;;
+		addall | A) shift 1; add_todo "$@" ;;
+		show | s) catcmd+=" -n" ;&
+		get | g)
+			[[ $# -ne 1 ]] && extra_arguments_error "$@"
+			$catcmd "$TODO_LINES_FILE" ;;
+		help | h)
+			[[ $# -ne 1 ]] && extra_arguments_error "$@"
+			echo "    Simple Terminal Based todo app"
+            echo "$HELP" ;;
+		clear | c)
+			[[ $# -ne 1 ]] && extra_arguments_error "$@"
+			truncate --size=0 "$TODO_LINES_FILE" ;;
+		remove | r)
+			shift 1
+			assert_all_ints "$@"
+			remove_todos "$@" ;;
+		*) unknown_command_error "$1" ;;
+	esac
+}
+
+main "$@"
+

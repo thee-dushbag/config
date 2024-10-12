@@ -1,0 +1,71 @@
+#! /usr/bin/env python
+
+import asyncio as aio
+from os import getenv
+from subprocess import run
+from sys import argv
+from threading import current_thread as cthread
+
+MAKE = 'make -C'
+PATH = '~/Content/code/live/python'
+MOVIE = f'{getenv("MOVIE_HOST")}:{getenv("MOVIE_PORT")}'
+
+def _run_in_exc(func, *args, **kwargs):
+    loop = aio.get_running_loop()
+    t = loop.run_in_executor(None, func, *args, **kwargs)
+    return t
+
+def _run(cmd):
+    return run(cmd, shell=True, capture_output=True)
+
+def _thread_id():
+    return int(cthread().ident or -1)
+
+def serve_statics():
+    thread_id = _thread_id()
+    print(f'[{thread_id}]: Serving Statics')
+    out = _run(f'{MAKE} {PATH}/statics')
+    print(f'[{thread_id}]: Stopped Serving Statics')
+    return out
+
+def serve_movies():
+    thread_id = _thread_id()
+    print(f'[{thread_id}]: Serving Movies')
+    op = 'load' if 'load' in argv else 'serve'
+    out = _run(f'{MAKE} {PATH}/movie-app {op}')
+    print(f'[{thread_id}]: Stopped Serving Movies')
+    return out
+
+def watch_movies():
+    thread_id = _thread_id()
+    if 'no-watch' in argv:
+        print(f"[{thread_id}]: No Watching Movies")
+        return
+    print(f'[{thread_id}]: Watching Movies')
+    out = _run(f'firefox http://{MOVIE}/movies')
+    print(f'[{thread_id}]: Stopped Watching Movies')
+    return out
+
+async def _prepare_serves():
+    t1 = _run_in_exc(serve_statics)
+    t2 = _run_in_exc(serve_movies)
+    return t1, t2
+
+async def _prepare_watch(wait=3):
+    tasks = await _prepare_serves()
+    await aio.sleep(wait)
+    tw = _run_in_exc(watch_movies)
+    return (*tasks, tw)
+
+async def main():
+    thread_id = _thread_id()
+    print(f"[{thread_id}]: Main Thread")
+    tasks = await _prepare_watch(3)
+    await aio.gather(*tasks, return_exceptions=True)
+    print(f"[{thread_id}]: Killing Main Thread")
+
+try:
+    r = aio.run(main())
+    print(r)
+except BaseException as e:
+    print(str(e))

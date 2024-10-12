@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+function _in_array() {
+  declare -n array="$1"
+  local value="$2"
+  for val in "${array[@]}"; do
+    if [[ "$val" == "$value" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+function retry_command() {
+  local command=() untilstatus=(0) timeout=1 untilthen="F"
+  declare -i retry_count=3 argcount="$#" laststatus
+  while [ $# -ne 0 ]; do
+    case "$1" in
+    --help | -h | -\?)
+      echo 'Usage: <cmd> [options...] [command [options...]]'
+      echo '--help    -h      -?    Show this message and exit.'
+      echo '--ignore  -i      -I    Ignore the next token, eg -I -R, will not throw (*_*)'
+      echo '---last   --LAST  ---   Mark the rest of the arguments as part of command to retry'
+      echo '--retry   -r      -R    How many times to retry the command. Default 3'
+      echo '--timeout -t      -T    How long to wait till the next retry. Default 1'
+      echo '--until   -u      -U    The exit status to ignore on. Default <array:int> (0)'
+      echo '--respect-until --ru --RU  Respect until values, disable retry count. Values: T/F. Default F'
+      [[ "$argcount" -eq 1 ]] && return 0 || return 1
+      ;;
+
+    --timeout | -t | -T)
+      if [[ ! "$2" =~ [0-9]+(.[0-9]+)? ]]; then
+        echo >&2 "Expected timeout to be float, got '$2'"
+        return 1
+      fi
+      timeout="$2"
+      shift 2
+      ;;
+
+    --retry | -r | -R)
+      if [[ ! "$2" =~ [0-9]+ ]]; then
+        echo >&2 "Expected retry to be an integer, got '$2'"
+        return 1
+      fi
+      retry_count="$2"
+      shift 2
+      ;;
+
+    --ignore | -i | -I)
+      command+=("$2")
+      shift 2
+      ;;
+
+    ---last | --- | --LAST)
+      shift 1
+      command+=("$@")
+      break
+      ;;
+
+    --until | --U | -u)
+      if [[ ! "$2" =~ [0-9]+ ]]; then
+        echo >&2 "Expected \`until status\` to be an integer, got '$2'"
+        return 1
+      fi
+      untilstatus+=("$2")
+      shift 2
+      ;;
+
+    --respect-until | --ru | --RU)
+      if [[ ! "$2" =~ T|F ]]; then
+        echo >&2 "Expected respect-until to be T/F, got $2"
+        return 1
+      fi
+      untilthen="$2"
+      shift 2
+      ;;
+
+    *)
+      command+=("$1")
+      shift 1
+      ;;
+    esac
+  done
+  local cmd="${command[*]}"
+  if [[ -z "$cmd" ]]; then
+    echo >&2 No command to run.
+    return 2
+  else
+    echo >&2 "Running: '$cmd'"
+  fi
+  declare -i current_count=1
+  while [[ $current_count -le $retry_count ]]; do
+    $cmd
+    laststatus="$?"
+    if _in_array untilstatus $laststatus; then
+      break
+    elif [[ "$untilthen" == T ]]; then
+      current_count="$((retry_count - 1))"
+    fi
+    current_count=$(($current_count + 1))
+    sleep $timeout
+  done
+  return $laststatus
+}
+
+retry_command "@"
+

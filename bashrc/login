@@ -1,0 +1,8 @@
+if [ -d "${CONFIG_DIR:="$HOME/.config/bashrc"}" ]; then
+  source "$CONFIG_DIR/vars"
+  source "$CONFIG_DIR/methods"
+  source "$CONFIG_DIR/aliases"
+else
+  echo "Missing config dir: '$CONFIG_DIR'" >&2
+fi
+

@@ -1,0 +1,28 @@
+#! /usr/bin/env python
+
+from functools import partial
+from pathlib import Path
+
+import attrs
+import sh
+
+
+@attrs.define
+class Package:
+    name: str
+    version: str
+    op: str = attrs.field(default=">=")
+
+    def __str__(self):
+        return f"{self.name}{self.op}{self.version}"
+
+
+json_reqs = sh.pip("list", format="json")
+reqs_list: list[dict[str, str]] = eval(json_reqs)
+reqs_file = Path.cwd() / "requirements.txt"
+
+with reqs_file.open('w') as file:
+    p = partial(print, file=file)
+    for obj in reqs_list:
+        pack = Package(**obj)
+        p(str(pack))

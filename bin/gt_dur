@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+
+import asyncio as aio
+import sys
+from pathlib import Path
+from threading import Lock
+from typing import Sequence, cast
+
+import attrs
+from moviepy.editor import AudioFileClip
+from mpack import print as _rprint
+from mpack.timable import Time
+
+lock = Lock()
+
+def rprint(*args, **kwargs):
+    with lock: _rprint(*args, **kwargs)
+
+def _stime(t: Time):
+    return f'Time[{t.hours}h {t.minutes}m {t.milliseconds}ms]'
+
+@attrs.define
+class AudioFile:
+    file: Path
+    duration: int | None = None
+    
+    async def get_duration(self) -> int:
+        if not self.file.exists(): return 0
+        self.duration = AudioFileClip(str(self.file)).duration
+        duration = cast(int, self.duration)
+        rprint(f"[green bold]{_stime(Time(duration))}[white]: ", \
+               f"[yellow bold]{self.file.name!r}")
+        return duration
+
+@attrs.define
+class AudioFiles:
+    files: Sequence[Path]
+    duration: int | None = None
+    
+    async def get_duration(self) -> int:
+        tasks = (AudioFile(file).get_duration()
+                 for file in self.files)
+        d = await aio.gather(*tasks, return_exceptions=True)
+        times = list(filter(lambda i: not isinstance(i, BaseException), d))
+        self.duration = sum(times)
+        longest, shortest = max(times), min(times)
+        duration = cast(int, self.duration)
+        rprint(f"[purple bold]:kiwi_fruit: File Count[white]   : {len(times)} files.")
+        rprint(f"[purple bold]:pear: Longest Time[white] : {_stime(Time(longest))}")
+        rprint(f"[purple bold]:rose: Shortest Time[white]: {_stime(Time(shortest))}")
+        rprint(f"[purple bold]:apple: Total Time[white]   : {_stime(Time(duration))}")
+        return duration
+
+async def main(file: str):
+    files = Path(file).read_text().splitlines()
+    await AudioFiles([Path(f) for f in files]).get_duration()
+
+if __name__ == '__main__':
+    try:
+        file = sys.argv[1]
+        aio.run(main(file))
+    except (KeyboardInterrupt, SystemExit):
+        pass

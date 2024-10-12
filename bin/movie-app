@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+
+from concurrent.futures import ThreadPoolExecutor as Executor
+from subprocess import run
+from mpack import main
+
+MAKE = 'make -C '
+BASE_PATH = '~/Content/code/live/python'
+STATIC_PATH = BASE_PATH + '/statics'
+MOVIE_PATH = BASE_PATH + '/movie-app-2 g'
+
+STATIC_CMD = MAKE + STATIC_PATH
+MOVIE_CMD = MAKE + MOVIE_PATH
+
+def _runtask(cmd, co=False):
+    return run(cmd, capture_output=co, shell=True)
+
+def runtask(cmd, desc, co=False):
+    print(f"Running: {desc} by {cmd!r}")
+    try:
+        _runtask(cmd, co)
+    finally:
+        print(f"Stopped: {cmd!r}")
+
+def shutdown(r: Executor):
+    r.shutdown(False, cancel_futures=True)
+
+def _main():
+    with Executor(2) as r:
+        r.submit(runtask, STATIC_CMD, 'Serving statics', True)
+        fut = r.submit(runtask, MOVIE_CMD, 'Serving movies', True)
+        fut.add_done_callback(lambda *_: shutdown(r))
+
+@main(__name__)
+def _():
+    try: _main()
+    except KeyboardInterrupt: ...

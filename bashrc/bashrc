@@ -1,0 +1,16 @@
+#
+# ~/.bashrc
+#
+
+# If not running interactively, don't do anything
+[[ $- != *i* ]] && return
+
+alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+alias m4n="aft-mtp-mount '$HOME/Phone'"
+alias u4n="umount '$HOME/Phone'"
+alias nmcli="nmcli --colors=auto --pretty"
+alias mpv="mpv --background-color='`xrdb -get mpv.background`'"
+
+[[ -f ~/.bash_login ]] && . ~/.bash_login
+
