@@ -7,9 +7,10 @@ Xft.hintstyle:          hintslight
 Xft.rgba:               rgb
 Xft.lcdfilter:          lcddefault
 
-*.foreground:   #d3d7cf
-*.background:   #2e3436
-*.cursorColor:  #ff8844
+*.foreground:   #d5dadf
+! *.background:   #2e3436
+*.background:   #000000
+*.cursorColor:  #55BBff
 *.cursorColor2: #181818
 
 ! URxvt settings
@@ -23,7 +24,7 @@ URxvt.scrollTtyOutput:     true
 URxvt.internalBorder:      10
 URxvt.transparent:         false
 URxvt*depth:               32
-URxvt.font: xft:CaskaydiaCove Nerd Font:size=11.25,xft:devicons
+URxvt.font: xft:Iosevka Term Nerd Font:size=12,xft:devicons
 
 ! Color scheme
 *.color0:  #3b4252

@@ -3,14 +3,14 @@ normal = { family="Hurmit Nerd Font", style="regular" }
 
 [window]
 padding = { x = 8, y = 8 }
-opacity = 0.9
+opacity = 0.75
 
 [colors]
-cursor     = { text = "#181818", cursor = "#ff8844" }
+cursor     = { text = "#181818", cursor = "#55bbff" }
 
 [colors.primary]
-background = "#2e3436"
-foreground = "#d3d7cf"
+background = "#000000"
+foreground = "#d5dadf"
 
 [colors.normal]
 black   =  "#3b4252"

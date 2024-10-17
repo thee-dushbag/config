@@ -22,3 +22,5 @@ export MOVIE_PORT="9080"
 export EDITOR="nvim"
 export PAGER="less"
 
+shopt -s failglob nullglob globstar
+
